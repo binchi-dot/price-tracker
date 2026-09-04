@@ -1,8 +1,8 @@
-name: 每日物價自動部署
+name: 每週物價自動部署
 
 on:
   schedule:
-    - cron: "0 6 * * *"
+    - cron: "0 6 * * 1"
   workflow_dispatch:
     inputs:
       backfill:
