@@ -47,11 +47,13 @@ def render(date, veg, oldveg, fish, oldfish, rice, pigs, poultry):
     birdtxt="<br>".join(f"{label}：{html.escape(str(bird.get(key,'無資料')))} 元/公斤" for label,key in (("白肉雞 2.0Kg 以上","白肉雞(2.0Kg以上)"),("白肉雞 1.75–1.95Kg","白肉雞(1.75-1.95Kg)"),("白肉雞門市價高屏","白肉雞(門市價高屏)"),("雞蛋（產地）","雞蛋(產地)")))
     rice_text=f"全國平均：{sum(rv)/len(rv):.2f} 元/公斤" if rv else "本次資料取得失敗"; pig_text=f"全國平均：{sum(pv)/len(pv):.2f} 元/公斤" if pv else "本次資料取得失敗"
     return f"""<!doctype html><html lang='zh-TW'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>臺灣每日物價報告｜{date}</title><style>body{{font-family:'Microsoft JhengHei',sans-serif;background:#f5f7fa;color:#1f2937;margin:0;padding:24px;line-height:1.6}}main{{max-width:1100px;margin:auto;background:#fff;padding:32px;border-radius:14px;box-shadow:0 3px 18px #0001}}nav a{{margin-right:18px;color:#0284c7;text-decoration:none;font-weight:bold}}h1{{color:#0284c7;border-bottom:3px solid #0ea5e9;padding-bottom:12px}}h2{{color:#059669;border-left:5px solid #10b981;padding-left:10px;margin-top:32px}}h3{{color:#b45309}}.info{{background:#eff6ff;border-left:4px solid #0ea5e9;padding:12px 16px;border-radius:6px}}table{{width:100%;border-collapse:collapse;margin:10px 0 18px}}th{{background:#0284c7;color:white;text-align:left}}th,td{{padding:9px;border-bottom:1px solid #e5e7eb}}.up{{color:#dc2626;font-weight:bold}}.down{{color:#059669;font-weight:bold}}.stable{{color:#6b7280}}footer{{color:#6b7280;text-align:center;margin-top:32px;font-size:.9rem}}</style><body><main><nav><a href='index.html'>今日報告</a><a href='trend.html'>趨勢圖</a><a href='history/index.html'>歷史報告</a></nav><h1>📊 臺灣每日物價報告</h1><div class='info'>報告日期：{date}<br>資料來源：農業部 5 項公開資料 API<br>排程：每日 14:00（台北時間）更新</div><h2>🥬 主要蔬果價格</h2>{''.join(blocks)}<h2>🍎 主要水果價格</h2>{table(fruit,oldveg)}<h2>🍚 米價</h2><div class='info'>{rice_text}</div><h2>🐷 豬價</h2><div class='info'>{pig_text}</div><h2>🐟 主要魚價</h2>{table(fish,oldfish)}<h2>🐔 雞價、蛋價</h2><div class='info'>{birdtxt}</div><footer>下次更新：明日 14:00（台北時間）</footer></main></body></html>"""
-def spark(values):
+def spark(values, labels=None):
     if len(values) < 2: return "<span class='stable'>資料不足</span>"
     lo, hi=min(values),max(values); span=hi-lo or 1
     points=" ".join(f"{i*190/(len(values)-1):.1f},{48-(v-lo)*42/span:.1f}" for i,v in enumerate(values))
-    return f"<svg viewBox='0 0 190 52' role='img' aria-label='價格走勢' style='width:190px;height:52px;display:block;margin:8px 0'><path d='M0 49H190' stroke='#dbeafe'/><polyline points='{points}' fill='none' stroke='#0284c7' stroke-width='2.5'/></svg>"
+    labels = labels or [str(i + 1) for i in range(len(values))]
+    axis = "<div class='axis'>" + "".join(f"<span>{html.escape(str(label))}</span>" for label in labels) + "</div>"
+    return f"<svg viewBox='0 0 190 52' role='img' aria-label='價格走勢' style='width:100%;height:52px;display:block;margin:8px 0'><path d='M0 49H190' stroke='#dbeafe'/><polyline points='{points}' fill='none' stroke='#0284c7' stroke-width='2.5'/></svg>{axis}"
 def render_trend():
     series={item:[] for item in TREND_ITEMS}; dates=[]
     for file in sorted(DATA.glob("wholesale_20*.json")):
@@ -90,7 +92,7 @@ def nav():
 
 def page(title, body):
     return f"""<!doctype html><html lang='zh-TW'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{title}</title><style>
-body{{font-family:'Microsoft JhengHei',sans-serif;background:#f5f7fa;color:#1f2937;margin:0;padding:24px;line-height:1.6}}main{{max-width:1160px;margin:auto;background:#fff;padding:32px;border-radius:14px;box-shadow:0 3px 18px #0001}}nav a{{margin-right:18px;color:#0284c7;text-decoration:none;font-weight:bold}}h1{{color:#0284c7;border-bottom:3px solid #0ea5e9;padding-bottom:12px}}h2{{color:#059669;border-left:5px solid #10b981;padding-left:10px;margin-top:32px}}h3{{color:#b45309}}.info{{background:#eff6ff;border-left:4px solid #0ea5e9;padding:12px 16px;border-radius:6px}}.warning{{background:#fff7ed;border-left-color:#f97316}}table{{width:100%;border-collapse:collapse;margin:10px 0 18px}}th{{background:#0284c7;color:white;text-align:left}}th,td{{padding:9px;border-bottom:1px solid #e5e7eb;vertical-align:top}}.up{{color:#dc2626;font-weight:bold}}.down{{color:#059669;font-weight:bold}}.stable{{color:#6b7280}}.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:14px}}.card{{border:1px solid #dbeafe;border-radius:10px;padding:14px}}input{{font:inherit;padding:9px 12px;border:1px solid #93c5fd;border-radius:7px;width:min(420px,100%)}}small{{color:#6b7280}}.badge{{display:inline-block;padding:1px 7px;border-radius:10px;background:#dcfce7;color:#166534;font-size:.85em}}footer{{color:#6b7280;text-align:center;margin-top:32px;font-size:.9rem}}</style><body><main>{nav()}{body}<footer>資料來源：農業部公開資料與臺南市傳統市場訪查表；每日 14:00（台北時間）更新。</footer></main></body></html>"""
+body{{font-family:'Microsoft JhengHei',sans-serif;background:#f5f7fa;color:#1f2937;margin:0;padding:24px;line-height:1.6}}main{{max-width:1160px;margin:auto;background:#fff;padding:32px;border-radius:14px;box-shadow:0 3px 18px #0001}}nav a{{margin-right:18px;color:#0284c7;text-decoration:none;font-weight:bold}}h1{{color:#0284c7;border-bottom:3px solid #0ea5e9;padding-bottom:12px}}h2{{color:#059669;border-left:5px solid #10b981;padding-left:10px;margin-top:32px}}h3{{color:#b45309}}.info{{background:#eff6ff;border-left:4px solid #0ea5e9;padding:12px 16px;border-radius:6px}}.warning{{background:#fff7ed;border-left-color:#f97316}}table{{width:100%;border-collapse:collapse;margin:10px 0 18px}}th{{background:#0284c7;color:white;text-align:left}}th,td{{padding:9px;border-bottom:1px solid #e5e7eb;vertical-align:top}}.up{{color:#dc2626;font-weight:bold}}.down{{color:#059669;font-weight:bold}}.stable{{color:#6b7280}}.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:14px}}.card{{border:1px solid #dbeafe;border-radius:10px;padding:14px}}.axis{{display:flex;justify-content:space-between;gap:4px;color:#64748b;font-size:.72rem;white-space:nowrap;overflow:hidden}}input{{font:inherit;padding:9px 12px;border:1px solid #93c5fd;border-radius:7px;width:min(420px,100%)}}small{{color:#6b7280}}.badge{{display:inline-block;padding:1px 7px;border-radius:10px;background:#dcfce7;color:#166534;font-size:.85em}}footer{{color:#6b7280;text-align:center;margin-top:32px;font-size:.9rem}}</style><body><main>{nav()}{body}<footer>資料來源：農業部公開資料與臺南市傳統市場訪查表；每日 14:00（台北時間）更新。</footer></main></body></html>"""
 
 
 def delta(current, previous):
@@ -117,7 +119,7 @@ def retail_overview():
     for name in ("高麗菜", "小白菜", "牛番茄", "雞蛋", "土雞腿", "肉雞腿"):
         series = retail_series(history, name)
         if series:
-            points.append(f"<section class='card'><strong>{name}</strong>{spark([v for _, v in series])}<div>1–8 月零售均價（元/台斤）</div><small>{'、'.join(f'{m[5:]}月 {v:.0f}' for m,v in series)}</small></section>")
+            points.append(f"<section class='card'><strong>{name}</strong>{spark([v for _, v in series], [m[5:] + '月' for m,_ in series])}<div>1–8 月零售均價（元/台斤）</div><small>{'、'.join(f'{m[5:]}月 {v:.0f}' for m,v in series)}</small></section>")
     return "<h2>🧺 傳統市場數據與月趨勢</h2><div class='info'>已匯入臺南市 7 個傳統市場、115 年 1–8 月訪查資料。<a href='market.html'>查看各市場原始報價、供應情形與批零對照 →</a></div><div class='cards'>" + "".join(points) + "</div>"
 
 
@@ -165,14 +167,16 @@ def render_market_comparison(latest_wholesale):
         wholesale_text=f"{wholesale:.2f} 元/公斤" if wholesale is not None else "暫無同品項批發資料"
         detail="；".join(f"{o['market']}：{o['raw_price'] or '未報價'}（供應{history.get('supply_legend',{}).get(o['supply'],o['supply'] or '未填')}）" for o in item["observations"])
         rows.append(f"<tr data-search='{html.escape((item['category']+' '+item['name']+' '+clean).lower())}'><td>{html.escape(item['category'])}</td><td><b>{html.escape(item['name'])}</b><br><small>{html.escape(detail)}</small></td><td>{item['retail_average'] if item['retail_average'] is not None else '—'} 元/台斤<br><small>直接報價 {item['direct_quote_count']} 處</small></td><td>{comparison}</td><td>{wholesale_text}</td></tr>")
-    trend_names=("高麗菜","小白菜","牛番茄","絲瓜","小黃瓜","雞蛋","土雞腿","肉雞腿")
     cards=[]
-    for name in trend_names:
+    for item in survey["items"]:
+        name = re.sub(r"1(?:台)?斤.*$", "", item["name"])
         points=retail_series(history,name)
         if points:
-            vals=[v for _,v in points]; labels=" → ".join(f"{m[5:]}月 {v:.0f}" for m,v in points)
-            cards.append(f"<section class='card' data-search='{name}'><strong>{name}</strong>{spark(vals)}<div>1–8 月零售均價（元/台斤）：{labels}</div></section>")
-    body=f"<h1>🧺 傳統市場零售價／批發價比對</h1><div class='info'>零售資料：臺南市傳統市場訪查表，{latest_month or '—'}，涵蓋 {len(survey.get('markets',[]))} 個市場、{len(survey.get('items',[]))} 項商品。已匯入 1–8 月所有分頁，可查看下方零售趨勢。</div><div class='info warning'>批發資料為農業部最新批發行情；零售訪查是月資料，兩者日期不同。僅在商品與計價單位可合理對應時提供每公斤參考，不能視為同期價差或利潤。</div><h2>🔎 檢索品項</h2><input id='marketSearch' placeholder='輸入品項、類別或市場名稱，例如：雞蛋、蔬菜、蛤蜊'><h2>📋 {latest_month or ''} 零售訪查與批發參考</h2><table id='compare'><thead><tr><th>類別</th><th>商品與各市場原始報價</th><th>零售平均</th><th>換算每公斤</th><th>批發參考</th></tr></thead><tbody>{''.join(rows)}</tbody></table><h2>📈 零售市場月趨勢（1–8 月）</h2><div class='cards'>{''.join(cards)}</div><script>marketSearch.addEventListener('input',()=>{{let q=marketSearch.value.trim().toLowerCase();document.querySelectorAll('#compare tbody tr,.card').forEach(e=>e.hidden=q&&!e.innerText.toLowerCase().includes(q))}})</script>"
+            vals=[v for _,v in points]; labels="、".join(f"{m[5:]}月 {v:.0f}" for m,v in points)
+            direct=[o["normalized_price"] for o in item["observations"] if o["normalized_price"] is not None]
+            spread=f"本月市場直接報價 {min(direct):.0f}–{max(direct):.0f} 元/台斤" if direct else "本月多為非標準包裝報價"
+            cards.append(f"<section class='card' data-search='{html.escape(item['category']+' '+name)}'><strong>{html.escape(item['name'])}</strong>{spark(vals, [m[5:] + '月' for m,_ in points])}<div>{spread}</div><small>月均價：{labels}</small></section>")
+    body=f"<h1>🧺 傳統市場零售價／批發價比對</h1><div class='info'>零售資料：臺南市傳統市場訪查表，{latest_month or '—'}，涵蓋 {len(survey.get('markets',[]))} 個市場、{len(survey.get('items',[]))} 項商品。每個品項皆已提供 1–8 月趨勢圖與月份軸。</div><div class='info warning'>批發資料為農業部最新批發行情；零售訪查是月資料，兩者日期不同。僅在商品與計價單位可合理對應時提供每公斤參考，不能視為同期價差或利潤。</div><h2>🔎 檢索品項</h2><input id='marketSearch' placeholder='輸入品項、類別或市場名稱，例如：雞蛋、蔬菜、蛤蜊'><h2>📋 {latest_month or ''} 零售訪查與批發參考</h2><table id='compare'><thead><tr><th>類別</th><th>商品與各市場原始報價</th><th>零售平均</th><th>換算每公斤</th><th>批發參考</th></tr></thead><tbody>{''.join(rows)}</tbody></table><h2>📈 全品項零售市場月趨勢（1–8 月）</h2><div class='cards'>{''.join(cards)}</div><script>marketSearch.addEventListener('input',()=>{{let q=marketSearch.value.trim().toLowerCase();document.querySelectorAll('#compare tbody tr,.card').forEach(e=>e.hidden=q&&!e.innerText.toLowerCase().includes(q))}})</script>"
     (ROOT / "market.html").write_text(page("傳統市場／批發價格比對", body), encoding="utf-8")
 
 
@@ -190,12 +194,13 @@ def render_trend():
     for item, points in series.items():
         if not points: continue
         vals=[v for _,v in points]; recent=vals[-7:]; monthly=vals[-30:]; change=(vals[-1]-vals[0])/vals[0]*100 if vals[0] else 0
-        cards.append(f"<section class='card' data-search='{item}'><strong>{item}｜批發</strong>{spark(vals)}<div>最新 {vals[-1]:.2f} 元/公斤</div><div>近 7 日 {sum(recent)/len(recent):.2f}；近 30 日 {sum(monthly)/len(monthly):.2f}</div><div class='{'up' if change>0 else 'down' if change<0 else 'stable'}'>期間 {change:+.2f}%</div></section>")
+        labels=[f"{p[4:6]}/{p[6:]}" for p,_ in points]
+        cards.append(f"<section class='card' data-search='{item}'><strong>{item}｜批發</strong>{spark(vals, labels)}<div>最新 {vals[-1]:.2f} 元/公斤</div><div>近 7 日 {sum(recent)/len(recent):.2f}；近 30 日 {sum(monthly)/len(monthly):.2f}</div><div class='{'up' if change>0 else 'down' if change<0 else 'stable'}'>期間 {change:+.2f}%</div></section>")
     for name in ("高麗菜","小白菜","牛番茄","絲瓜","小黃瓜","雞蛋","土雞腿","肉雞腿"):
         points=retail_series(history,name)
         if points:
             vals=[v for _,v in points]
-            cards.append(f"<section class='card' data-search='{name}'><strong>{name}｜零售</strong>{spark(vals)}<div>1–8 月平均（元/台斤）</div><div>{'、'.join(f'{m[5:]}月 {v:.0f}' for m,v in points)}</div></section>")
+            cards.append(f"<section class='card' data-search='{name}'><strong>{name}｜零售</strong>{spark(vals, [m[5:] + '月' for m,_ in points])}<div>1–8 月平均（元/台斤）</div><div>{'、'.join(f'{m[5:]}月 {v:.0f}' for m,v in points)}</div></section>")
     period=f"{dates[0][:4]}-{dates[0][4:6]}-{dates[0][6:]} 至 {dates[-1][:4]}-{dates[-1][4:6]}-{dates[-1][6:]}" if dates else "尚無資料"
     body=f"<h1>📈 詳盡物價趨勢</h1><div class='info'>批發行情期間：{period}；零售市場趨勢：2026 年 1–8 月。趨勢頁在每日更新時連同批發資料重建。</div><h2>🔎 搜尋趨勢品項</h2><input id='trendSearch' placeholder='例如：高麗菜、雞蛋、木瓜'><h2>批發與零售趨勢</h2><div class='cards'>{''.join(cards)}</div><script>trendSearch.addEventListener('input',()=>{{let q=trendSearch.value.trim().toLowerCase();document.querySelectorAll('.card').forEach(e=>e.hidden=q&&!e.innerText.toLowerCase().includes(q))}})</script>"
     (ROOT / "trend.html").write_text(page("詳盡物價趨勢", body), encoding="utf-8")

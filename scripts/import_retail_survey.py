@@ -22,7 +22,7 @@ def plain(value):
 
 def direct_number(value):
     """Return a price only when the cell is a direct numeric value."""
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and not math.isnan(float(value)):
         return round(float(value), 2)
     text = plain(value).replace(",", "")
     if re.fullmatch(r"\d+(?:\.\d+)?", text):

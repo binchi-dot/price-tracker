@@ -1832,8 +1832,8 @@
           "category": "蔬菜蔬果",
           "name": "芭樂1台斤",
           "unit": "台斤",
-          "retail_average": NaN,
-          "direct_quote_count": 4,
+          "retail_average": 40.0,
+          "direct_quote_count": 3,
           "observations": [
             {
               "market": "新市市場",
@@ -1874,7 +1874,7 @@
             {
               "market": "新營第一市場",
               "raw_price": "",
-              "normalized_price": NaN,
+              "normalized_price": null,
               "supply": "3"
             }
           ]
