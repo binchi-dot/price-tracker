@@ -1,0 +1,54 @@
+name: 每日物價自動部署
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: 抓取 5 個農糧署 API
+        run: |
+          python3 << 'EOF'
+          import requests
+          import json
+          import os
+          from datetime import datetime
+          
+          os.makedirs('data', exist_ok=True)
+          today = datetime.now().strftime('%Y%m%d')
+          apis = {
+              "wholesale": "https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=WVOiWSdDjWxx",
+              "rice": "https://data.moa.gov.tw/Service/OpenData/FromM/RicepriceData.aspx",
+              "livestock": "https://data.moa.gov.tw/Service/OpenData/FromM/AnimalTransData.aspx",
+              "aquatic": "https://data.moa.gov.tw/Service/OpenData/FromM/AquaticTransData.aspx",
+              "poultry": "https://data.moa.gov.tw/Service/OpenData/FromM/PoultryTransData.aspx",
+          }
+          for name, url in apis.items():
+              try:
+                  r = requests.get(url, timeout=30)
+                  data = r.json() if r.status_code == 200 else []
+                  with open(f"data/{name}_{today}.json", "w") as f:
+                      json.dump(data, f, ensure_ascii=False, indent=2)
+                  print(f"{name}: {len(data)} 筆")
+              except Exception as e:
+                  print(f"{name}: {e}")
+          EOF
+      
+      - name: Commit
+        run: |
+          git config user.name "Price Bot"
+          git config user.email "bot@taiwan-price.app"
+          git add -A
+          git diff --staged --quiet || git commit -m "Auto: $(date +%Y-%m-%d)"
+          git push
