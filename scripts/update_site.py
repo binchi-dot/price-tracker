@@ -2,6 +2,7 @@
 """Rebuild the public static report from the five MOA price feeds."""
 import html
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -83,4 +84,116 @@ def main():
     links="".join(f"<li><a href='{p.name}'>{p.stem[:4]}-{p.stem[4:6]}-{p.stem[6:]}</a></li>" for p in sorted(HISTORY.glob("20*.html"),reverse=True))
     (HISTORY/"index.html").write_text(f"<!doctype html><meta charset='utf-8'><title>歷史物價報告</title><style>body{{font-family:'Microsoft JhengHei',sans-serif;max-width:800px;margin:40px auto;padding:20px}}a{{color:#0284c7}}</style><h1>📚 歷史物價報告</h1><ul>{links}</ul><p><a href='../index.html'>返回今日報告</a></p>",encoding="utf-8")
     render_trend()
+def nav():
+    return "<nav><a href='index.html'>今日報告</a><a href='trend.html'>詳盡趨勢</a><a href='market.html'>傳統市場／批發比價</a><a href='history/index.html'>歷史報告</a></nav>"
+
+
+def page(title, body):
+    return f"""<!doctype html><html lang='zh-TW'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{title}</title><style>
+body{{font-family:'Microsoft JhengHei',sans-serif;background:#f5f7fa;color:#1f2937;margin:0;padding:24px;line-height:1.6}}main{{max-width:1160px;margin:auto;background:#fff;padding:32px;border-radius:14px;box-shadow:0 3px 18px #0001}}nav a{{margin-right:18px;color:#0284c7;text-decoration:none;font-weight:bold}}h1{{color:#0284c7;border-bottom:3px solid #0ea5e9;padding-bottom:12px}}h2{{color:#059669;border-left:5px solid #10b981;padding-left:10px;margin-top:32px}}h3{{color:#b45309}}.info{{background:#eff6ff;border-left:4px solid #0ea5e9;padding:12px 16px;border-radius:6px}}.warning{{background:#fff7ed;border-left-color:#f97316}}table{{width:100%;border-collapse:collapse;margin:10px 0 18px}}th{{background:#0284c7;color:white;text-align:left}}th,td{{padding:9px;border-bottom:1px solid #e5e7eb;vertical-align:top}}.up{{color:#dc2626;font-weight:bold}}.down{{color:#059669;font-weight:bold}}.stable{{color:#6b7280}}.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:14px}}.card{{border:1px solid #dbeafe;border-radius:10px;padding:14px}}input{{font:inherit;padding:9px 12px;border:1px solid #93c5fd;border-radius:7px;width:min(420px,100%)}}small{{color:#6b7280}}.badge{{display:inline-block;padding:1px 7px;border-radius:10px;background:#dcfce7;color:#166534;font-size:.85em}}footer{{color:#6b7280;text-align:center;margin-top:32px;font-size:.9rem}}</style><body><main>{nav()}{body}<footer>資料來源：農業部公開資料與臺南市傳統市場訪查表；每日 14:00（台北時間）更新。</footer></main></body></html>"""
+
+
+def rice_breakdown(rows):
+    labels = {"pt_1japt":"蓬萊米（零售）", "pt_1tsait":"臺灣米（零售）", "pt_1sangt":"長秈米（零售）", "pt_1glutrt":"圓糯米（零售）", "pt_1glutlt":"長糯米（零售）"}
+    values = []
+    for key, label in labels.items():
+        nums = [num(row.get(key)) for row in rows]; nums = [x for x in nums if x and x > 0]
+        if nums: values.append((label, sum(nums) / len(nums)))
+    return "<table><thead><tr><th>米種</th><th>全國平均零售價</th></tr></thead><tbody>" + "".join(f"<tr><td>{label}</td><td>{price:.2f} 元/公斤</td></tr>" for label, price in values) + "</tbody></table>"
+
+
+def render(date, veg, oldveg, fish, oldfish, rice, pigs, poultry):
+    blocks = []
+    for label, words in CATS.items():
+        blocks.append(f"<h3>【{label}】</h3>" + table({k:v for k,v in veg.items() if any(w in k for w in words)}, oldveg))
+    fruit = {k:v for k,v in veg.items() if any(w in k for w in FRUIT)}
+    fish = {k:v for k,v in fish.items() if any(w in k for w in FISH)}
+    pig = [num(x.get("規格豬-平均價格")) for x in pigs]; pig = [x for x in pig if x and x > 0]
+    chicken_fields = (("白肉雞 2.0 公斤以上","白肉雞(2.0Kg以上)"),("白肉雞 1.75–1.95 公斤","白肉雞(1.75-1.95Kg)"),("白肉雞門市價（高屏）","白肉雞(門市價高屏)"),("雞蛋（產地）","雞蛋(產地)"))
+    bird = poultry[0] if poultry else {}
+    chicken = "<table><thead><tr><th>品項／規格</th><th>價格</th></tr></thead><tbody>" + "".join(f"<tr><td>{label}</td><td>{html.escape(str(bird.get(key,'無資料')))} 元/公斤</td></tr>" for label,key in chicken_fields) + "</tbody></table>"
+    body = f"<h1>📊 臺灣每日物價報告</h1><div class='info'>報告日期：{date}<br>可直接搜尋蔬果、米種、雞肉或蛋價；完整的傳統市場資料與批零比較請至<a href='market.html'>市場比價</a>。</div><h2>🔎 品項搜尋</h2><input id='siteSearch' placeholder='例如：高麗菜、圓糯米、雞蛋、虱目魚'><small>　會篩選本頁各價格表。</small><h2>🥬 更完整的主要蔬果價格</h2>{''.join(blocks)}<h2>🍎 主要水果價格</h2>{table(fruit,oldveg)}<h2>🍚 米價（依米種細分）</h2>{rice_breakdown(rice)}<h2>🐷 豬價</h2><div class='info'>全國平均：{sum(pig)/len(pig):.2f} 元/公斤</div><h2>🐟 主要魚價</h2>{table(fish,oldfish)}<h2>🐔 雞肉、蛋價（依規格／交易層級）</h2>{chicken}<script>siteSearch.addEventListener('input',()=>{{let q=siteSearch.value.trim().toLowerCase();document.querySelectorAll('tbody tr').forEach(r=>r.hidden=q&&!r.innerText.toLowerCase().includes(q))}})</script>"
+    return page(f"臺灣每日物價報告｜{date}", body)
+
+
+def retail_history():
+    file = DATA / "retail_market_history.json"
+    return json.loads(file.read_text(encoding="utf-8")) if file.exists() else {"surveys": {}, "survey_months": []}
+
+
+def retail_series(history, needle):
+    points=[]
+    for month in sorted(history["surveys"]):
+        match = next((x for x in history["surveys"][month]["items"] if needle in x["name"] and x["retail_average"] is not None), None)
+        if match: points.append((month, match["retail_average"]))
+    return points
+
+
+def render_market_comparison(latest_wholesale):
+    history = retail_history(); surveys = history.get("surveys", {}); latest_month = max(surveys) if surveys else None
+    survey = surveys.get(latest_month, {"items": [], "markets": []})
+    aliases = {"高麗菜":"甘藍", "牛番茄":"牛蕃茄", "小黃瓜":"胡瓜", "木瓜":"木瓜", "香蕉":"香蕉", "小白菜":"小白菜", "絲瓜":"絲瓜", "吳郭魚":"吳郭魚", "蛤蜊":"蛤蜊", "活白蝦":"蝦"}
+    rows=[]
+    for item in survey["items"]:
+        clean=re.sub(r"1(?:台)?斤.*$", "", item["name"])
+        key=next((v for k,v in aliases.items() if k in clean), None)
+        matches=[v for n,v in latest_wholesale.items() if key and key in n]
+        wholesale=round(sum(matches)/len(matches),2) if matches else None
+        normalized=round(item["retail_average"] / 0.6,2) if item["retail_average"] is not None and item["unit"]=="台斤" else None
+        comparison=f"{normalized:.2f} 元/公斤" if normalized is not None else "原表計價，未換算"
+        wholesale_text=f"{wholesale:.2f} 元/公斤" if wholesale is not None else "暫無同品項批發資料"
+        detail="；".join(f"{o['market']}：{o['raw_price'] or '未報價'}（供應{history.get('supply_legend',{}).get(o['supply'],o['supply'] or '未填')}）" for o in item["observations"])
+        rows.append(f"<tr data-search='{html.escape((item['category']+' '+item['name']+' '+clean).lower())}'><td>{html.escape(item['category'])}</td><td><b>{html.escape(item['name'])}</b><br><small>{html.escape(detail)}</small></td><td>{item['retail_average'] if item['retail_average'] is not None else '—'} 元/台斤<br><small>直接報價 {item['direct_quote_count']} 處</small></td><td>{comparison}</td><td>{wholesale_text}</td></tr>")
+    trend_names=("高麗菜","小白菜","牛番茄","絲瓜","小黃瓜","雞蛋","土雞腿","肉雞腿")
+    cards=[]
+    for name in trend_names:
+        points=retail_series(history,name)
+        if points:
+            vals=[v for _,v in points]; labels=" → ".join(f"{m[5:]}月 {v:.0f}" for m,v in points)
+            cards.append(f"<section class='card' data-search='{name}'><strong>{name}</strong>{spark(vals)}<div>1–8 月零售均價（元/台斤）：{labels}</div></section>")
+    body=f"<h1>🧺 傳統市場零售價／批發價比對</h1><div class='info'>零售資料：臺南市傳統市場訪查表，{latest_month or '—'}，涵蓋 {len(survey.get('markets',[]))} 個市場、{len(survey.get('items',[]))} 項商品。已匯入 1–8 月所有分頁，可查看下方零售趨勢。</div><div class='info warning'>批發資料為農業部最新批發行情；零售訪查是月資料，兩者日期不同。僅在商品與計價單位可合理對應時提供每公斤參考，不能視為同期價差或利潤。</div><h2>🔎 檢索品項</h2><input id='marketSearch' placeholder='輸入品項、類別或市場名稱，例如：雞蛋、蔬菜、蛤蜊'><h2>📋 {latest_month or ''} 零售訪查與批發參考</h2><table id='compare'><thead><tr><th>類別</th><th>商品與各市場原始報價</th><th>零售平均</th><th>換算每公斤</th><th>批發參考</th></tr></thead><tbody>{''.join(rows)}</tbody></table><h2>📈 零售市場月趨勢（1–8 月）</h2><div class='cards'>{''.join(cards)}</div><script>marketSearch.addEventListener('input',()=>{{let q=marketSearch.value.trim().toLowerCase();document.querySelectorAll('#compare tbody tr,.card').forEach(e=>e.hidden=q&&!e.innerText.toLowerCase().includes(q))}})</script>"
+    (ROOT / "market.html").write_text(page("傳統市場／批發價格比對", body), encoding="utf-8")
+
+
+def render_trend():
+    history=retail_history(); series={item:[] for item in TREND_ITEMS}; dates=[]
+    for file in sorted(DATA.glob("wholesale_20*.json")):
+        stamp=file.stem.rsplit("_",1)[1]
+        try: prices=avg(json.loads(file.read_text(encoding="utf-8")),"PRODUCTNAME","AVGPRICE")
+        except (json.JSONDecodeError, OSError): continue
+        dates.append(stamp)
+        for item in TREND_ITEMS:
+            values=[v for name,v in prices.items() if item in name]
+            if values: series[item].append((stamp,sum(values)/len(values)))
+    cards=[]
+    for item, points in series.items():
+        if not points: continue
+        vals=[v for _,v in points]; recent=vals[-7:]; monthly=vals[-30:]; change=(vals[-1]-vals[0])/vals[0]*100 if vals[0] else 0
+        cards.append(f"<section class='card' data-search='{item}'><strong>{item}｜批發</strong>{spark(vals)}<div>最新 {vals[-1]:.2f} 元/公斤</div><div>近 7 日 {sum(recent)/len(recent):.2f}；近 30 日 {sum(monthly)/len(monthly):.2f}</div><div class='{'up' if change>0 else 'down' if change<0 else 'stable'}'>期間 {change:+.2f}%</div></section>")
+    for name in ("高麗菜","小白菜","牛番茄","絲瓜","小黃瓜","雞蛋","土雞腿","肉雞腿"):
+        points=retail_series(history,name)
+        if points:
+            vals=[v for _,v in points]
+            cards.append(f"<section class='card' data-search='{name}'><strong>{name}｜零售</strong>{spark(vals)}<div>1–8 月平均（元/台斤）</div><div>{'、'.join(f'{m[5:]}月 {v:.0f}' for m,v in points)}</div></section>")
+    period=f"{dates[0][:4]}-{dates[0][4:6]}-{dates[0][6:]} 至 {dates[-1][:4]}-{dates[-1][4:6]}-{dates[-1][6:]}" if dates else "尚無資料"
+    body=f"<h1>📈 詳盡物價趨勢</h1><div class='info'>批發行情期間：{period}；零售市場趨勢：2026 年 1–8 月。趨勢頁在每日更新時連同批發資料重建。</div><h2>🔎 搜尋趨勢品項</h2><input id='trendSearch' placeholder='例如：高麗菜、雞蛋、木瓜'><h2>批發與零售趨勢</h2><div class='cards'>{''.join(cards)}</div><script>trendSearch.addEventListener('input',()=>{{let q=trendSearch.value.trim().toLowerCase();document.querySelectorAll('.card').forEach(e=>e.hidden=q&&!e.innerText.toLowerCase().includes(q))}})</script>"
+    (ROOT / "trend.html").write_text(page("詳盡物價趨勢", body), encoding="utf-8")
+
+
+def main():
+    now=datetime.now(ZoneInfo("Asia/Taipei")); stamp=now.strftime("%Y%m%d"); date=now.strftime("%Y-%m-%d"); DATA.mkdir(exist_ok=True); HISTORY.mkdir(exist_ok=True)
+    feeds={name:get(url) for name,url in APIS.items()}
+    for name,rows in feeds.items(): (DATA/f"{name}_{stamp}.json").write_text(json.dumps(rows,ensure_ascii=False),encoding="utf-8")
+    prior=sorted(DATA.glob("wholesale_*.json"))[-2:-1]; oldveg=oldfish={}
+    if prior:
+        oldveg=avg(json.loads(prior[0].read_text(encoding="utf-8")),"PRODUCTNAME","AVGPRICE"); oldstamp=prior[0].stem.rsplit("_",1)[1]; f=DATA/f"aquatic_{oldstamp}.json"
+        if f.exists(): oldfish=avg(json.loads(f.read_text(encoding="utf-8")),"魚貨名稱","平均價")
+    wholesale=avg(feeds["wholesale"],"PRODUCTNAME","AVGPRICE")
+    report=render(date,wholesale,oldveg,avg(feeds["aquatic"],"魚貨名稱","平均價"),oldfish,feeds["rice"],feeds["livestock"],feeds["poultry"])
+    (ROOT/"index.html").write_text(report,encoding="utf-8"); (HISTORY/f"{stamp}.html").write_text(report,encoding="utf-8")
+    links="".join(f"<li><a href='{p.name}'>{p.stem[:4]}-{p.stem[4:6]}-{p.stem[6:]}</a></li>" for p in sorted(HISTORY.glob("20*.html"),reverse=True))
+    (HISTORY/"index.html").write_text(f"<!doctype html><meta charset='utf-8'><title>歷史物價報告</title><h1>歷史物價報告</h1><ul>{links}</ul><p><a href='../index.html'>返回今日報告</a></p>",encoding="utf-8")
+    render_market_comparison(wholesale); render_trend()
+
+
 if __name__ == '__main__': main()
