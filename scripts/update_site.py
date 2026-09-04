@@ -13,6 +13,7 @@ APIS = {"wholesale":"https://data.moa.gov.tw/Service/OpenData/TransService.aspx?
 CATS = {"葉菜類":("白菜","菠菜","萵苣","甘藍","高麗菜","油菜"), "果菜類":("蕃茄","胡瓜","茄子","甜椒","青椒"), "根莖類":("馬鈴薯","胡蘿蔔","洋蔥","蒜頭","生薑","青蔥","辣椒")}
 FRUIT = ("鳳梨","木瓜","芒果","西瓜","葡萄","梨","香蕉","酪梨")
 FISH = ("吳郭魚","尼羅紅魚","鯖魚","白帶魚","虱目魚","鱸魚","草魚","鰱魚","鯉魚","石斑","蝦","蛤")
+TREND_ITEMS = ("小白菜", "甘藍", "胡瓜", "牛蕃茄", "木瓜", "鳳梨", "西瓜", "洋蔥", "青蔥")
 
 def get(url):
     with urlopen(Request(url, headers={"User-Agent":"taiwan-price-report"}), timeout=45) as r: return json.load(r)
@@ -45,6 +46,30 @@ def render(date, veg, oldveg, fish, oldfish, rice, pigs, poultry):
     birdtxt="<br>".join(f"{label}：{html.escape(str(bird.get(key,'無資料')))} 元/公斤" for label,key in (("白肉雞 2.0Kg 以上","白肉雞(2.0Kg以上)"),("白肉雞 1.75–1.95Kg","白肉雞(1.75-1.95Kg)"),("白肉雞門市價高屏","白肉雞(門市價高屏)"),("雞蛋（產地）","雞蛋(產地)")))
     rice_text=f"全國平均：{sum(rv)/len(rv):.2f} 元/公斤" if rv else "本次資料取得失敗"; pig_text=f"全國平均：{sum(pv)/len(pv):.2f} 元/公斤" if pv else "本次資料取得失敗"
     return f"""<!doctype html><html lang='zh-TW'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>臺灣每日物價報告｜{date}</title><style>body{{font-family:'Microsoft JhengHei',sans-serif;background:#f5f7fa;color:#1f2937;margin:0;padding:24px;line-height:1.6}}main{{max-width:1100px;margin:auto;background:#fff;padding:32px;border-radius:14px;box-shadow:0 3px 18px #0001}}nav a{{margin-right:18px;color:#0284c7;text-decoration:none;font-weight:bold}}h1{{color:#0284c7;border-bottom:3px solid #0ea5e9;padding-bottom:12px}}h2{{color:#059669;border-left:5px solid #10b981;padding-left:10px;margin-top:32px}}h3{{color:#b45309}}.info{{background:#eff6ff;border-left:4px solid #0ea5e9;padding:12px 16px;border-radius:6px}}table{{width:100%;border-collapse:collapse;margin:10px 0 18px}}th{{background:#0284c7;color:white;text-align:left}}th,td{{padding:9px;border-bottom:1px solid #e5e7eb}}.up{{color:#dc2626;font-weight:bold}}.down{{color:#059669;font-weight:bold}}.stable{{color:#6b7280}}footer{{color:#6b7280;text-align:center;margin-top:32px;font-size:.9rem}}</style><body><main><nav><a href='index.html'>今日報告</a><a href='trend.html'>趨勢圖</a><a href='history/index.html'>歷史報告</a></nav><h1>📊 臺灣每日物價報告</h1><div class='info'>報告日期：{date}<br>資料來源：農業部 5 項公開資料 API<br>排程：每日 14:00（台北時間）更新</div><h2>🥬 主要蔬果價格</h2>{''.join(blocks)}<h2>🍎 主要水果價格</h2>{table(fruit,oldveg)}<h2>🍚 米價</h2><div class='info'>{rice_text}</div><h2>🐷 豬價</h2><div class='info'>{pig_text}</div><h2>🐟 主要魚價</h2>{table(fish,oldfish)}<h2>🐔 雞價、蛋價</h2><div class='info'>{birdtxt}</div><footer>下次更新：明日 14:00（台北時間）</footer></main></body></html>"""
+def spark(values):
+    if len(values) < 2: return "<span class='stable'>資料不足</span>"
+    lo, hi=min(values),max(values); span=hi-lo or 1
+    points=" ".join(f"{i*190/(len(values)-1):.1f},{48-(v-lo)*42/span:.1f}" for i,v in enumerate(values))
+    return f"<svg viewBox='0 0 190 52' role='img' aria-label='價格走勢' style='width:190px;height:52px;display:block;margin:8px 0'><path d='M0 49H190' stroke='#dbeafe'/><polyline points='{points}' fill='none' stroke='#0284c7' stroke-width='2.5'/></svg>"
+def render_trend():
+    series={item:[] for item in TREND_ITEMS}; dates=[]
+    for file in sorted(DATA.glob("wholesale_20*.json")):
+        stamp=file.stem.rsplit("_",1)[1]
+        try: prices=avg(json.loads(file.read_text(encoding="utf-8")),"PRODUCTNAME","AVGPRICE")
+        except (json.JSONDecodeError, OSError): continue
+        dates.append(stamp)
+        for item in TREND_ITEMS:
+            values=[v for name,v in prices.items() if item in name]
+            if values: series[item].append((stamp,sum(values)/len(values)))
+    usable=sorted(set(dates)); cards=[]
+    for item, points in series.items():
+        if not points: continue
+        values=[v for _,v in points]; recent=values[-7:]; monthly=values[-30:]; change=(values[-1]-values[0])/values[0]*100 if values[0] else 0
+        color="#dc2626" if change>0 else "#059669" if change<0 else "#6b7280"
+        cards.append(f"<section style='border:1px solid #dbeafe;border-radius:10px;padding:14px'><strong style='font-size:1.1rem;color:#0369a1'>{html.escape(item)}</strong>{spark(values)}<div>最新：{values[-1]:.2f} 元/公斤</div><div>近 7 日均價：{sum(recent)/len(recent):.2f}</div><div>近 30 日均價：{sum(monthly)/len(monthly):.2f}</div><div style='color:{color};font-weight:bold'>期間變動：{change:+.2f}%</div></section>")
+    period=f"{usable[0][:4]}-{usable[0][4:6]}-{usable[0][6:]} 至 {usable[-1][:4]}-{usable[-1][4:6]}-{usable[-1][6:]}" if usable else "尚無資料"
+    body=f"""<!doctype html><html lang='zh-TW'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>物價趨勢圖｜臺灣每日物價報告</title><style>body{{font-family:'Microsoft JhengHei',sans-serif;background:#f5f7fa;color:#1f2937;margin:0;padding:24px;line-height:1.6}}main{{max-width:1100px;margin:auto;background:#fff;padding:32px;border-radius:14px;box-shadow:0 3px 18px #0001}}nav a{{margin-right:18px;color:#0284c7;text-decoration:none;font-weight:bold}}h1{{color:#0284c7;border-bottom:3px solid #0ea5e9;padding-bottom:12px}}h2{{color:#059669;border-left:5px solid #10b981;padding-left:10px;margin-top:32px}}.info{{background:#eff6ff;border-left:4px solid #0ea5e9;padding:12px 16px;border-radius:6px}}.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}}footer{{color:#6b7280;text-align:center;margin-top:32px;font-size:.9rem}}</style><body><main><nav><a href='index.html'>今日報告</a><a href='trend.html'>趨勢圖</a><a href='history/index.html'>歷史報告</a></nav><h1>📈 物價趨勢圖</h1><div class='info'>資料期間：{period}<br>可用交易日：{len(usable)} 天<br>歷史資料來源：農糧署批發市場交易行情；本頁會隨每日資料更新一併重建。</div><h2>主要蔬果走勢</h2><div class='cards'>{''.join(cards) or '<p>尚無足夠資料可顯示趨勢。</p>'}</div><footer>資料來源：農業部公開資料</footer></main></body></html>"""
+    (ROOT/"trend.html").write_text(body,encoding="utf-8")
 def main():
     now=datetime.now(ZoneInfo("Asia/Taipei")); stamp=now.strftime("%Y%m%d"); date=now.strftime("%Y-%m-%d"); DATA.mkdir(exist_ok=True); HISTORY.mkdir(exist_ok=True)
     feeds={name:get(url) for name,url in APIS.items()}
@@ -57,4 +82,5 @@ def main():
     (ROOT/"index.html").write_text(report,encoding="utf-8"); (HISTORY/f"{stamp}.html").write_text(report,encoding="utf-8")
     links="".join(f"<li><a href='{p.name}'>{p.stem[:4]}-{p.stem[4:6]}-{p.stem[6:]}</a></li>" for p in sorted(HISTORY.glob("20*.html"),reverse=True))
     (HISTORY/"index.html").write_text(f"<!doctype html><meta charset='utf-8'><title>歷史物價報告</title><style>body{{font-family:'Microsoft JhengHei',sans-serif;max-width:800px;margin:40px auto;padding:20px}}a{{color:#0284c7}}</style><h1>📚 歷史物價報告</h1><ul>{links}</ul><p><a href='../index.html'>返回今日報告</a></p>",encoding="utf-8")
+    render_trend()
 if __name__ == '__main__': main()

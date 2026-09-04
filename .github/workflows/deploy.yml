@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "0 6 * * *"
   workflow_dispatch:
+    inputs:
+      backfill:
+        description: '補抓 2026 年 8 月起的歷史蔬果行情'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   deploy:
@@ -21,6 +27,12 @@ jobs:
 
       - name: 更新網站資料與首頁
         run: python3 scripts/update_site.py
+
+      - name: 補抓歷史行情並重建趨勢圖
+        if: inputs.backfill == true
+        run: |
+          python3 scripts/backfill_history.py --from 2026-08-01
+          python3 scripts/update_site.py
 
       - name: Commit and Push
         run: |
