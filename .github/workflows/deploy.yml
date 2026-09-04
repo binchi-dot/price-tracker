@@ -1,3 +1,4 @@
+```yaml
 name: 每日物價自動部署
 
 on:
@@ -8,9 +9,11 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -19,7 +22,7 @@ jobs:
       
       - name: 抓取 5 個農糧署 API
         run: |
-          python3 << 'EOF'
+          python3 << 'PYEOF'
           import requests
           import json
           import os
@@ -43,10 +46,20 @@ jobs:
                   print(f"{name}: {len(data)} 筆")
               except Exception as e:
                   print(f"{name}: {e}")
-          EOF
+          PYEOF
       
-      - name: Commit
+      - name: Commit and Push
         run: |
+          git config user.name "Price Bot"
+          git config user.email "bot@taiwan-price.app"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto update: $(date +%Y-%m-%d)"
+            git push
+          fi
+```
           git config user.name "Price Bot"
           git config user.email "bot@taiwan-price.app"
           git add -A
