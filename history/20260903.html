@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>臺灣每日物價報告</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "微軟正黑體", sans-serif; background: #f5f5f5; padding: 20px; line-height: 1.6; }
+.container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+h1 { color: #0EA5E9; border-bottom: 3px solid #0EA5E9; padding-bottom: 10px; margin-bottom: 20px; }
+h2 { color: #10B981; margin-top: 25px; margin-bottom: 10px; padding-left: 10px; border-left: 5px solid #10B981; }
+h3 { color: #F59E0B; margin-top: 15px; margin-bottom: 8px; }
+.info-box { background: #f0f9ff; border-left: 4px solid #0EA5E9; padding: 10px 15px; margin-bottom: 15px; border-radius: 4px; }
+.price-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+.price-table th { background: #0EA5E9; color: white; padding: 8px; text-align: left; }
+.price-table td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+.price-table tr:hover { background: #f9f9f9; }
+.up { color: #dc2626; font-weight: bold; }
+.down { color: #059669; font-weight: bold; }
+.alert { background: #fef3c7; border-left: 4px solid #F59E0B; padding: 10px 15px; margin-bottom: 15px; border-radius: 4px; }
+.footer { text-align: center; color: #999; margin-top: 30px; font-size: 12px; }
+.nav { background: #f0f9ff; padding: 10px; margin-bottom: 20px; border-radius: 4px; }
+.nav a { margin-right: 15px; color: #0EA5E9; text-decoration: none; font-weight: bold; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="nav">
+<a href="index.html">📊 今日</a>
+<a href="history/index.html">📚 歷史報告</a>
+</div>
+<h1>📊 臺灣每日物價報告</h1>
+<div class="info-box">
+<strong>📅 報告日期：</strong> 2026-09-03<br>
+<strong>🕐 更新時間：</strong> 每日 14:00 自動更新<br>
+<strong>📡 資料來源：</strong> 5 個農糧署 API
+</div>
+<h2>🥬 一、主要蔬果價格</h2>
+<h3>【葉菜類】</h3>
+<table class="price-table">
+<thead><tr><th>產品</th><th>價格</th><th>漲跌</th></tr></thead>
+<tbody>
+<tr><td>菠菜</td><td>54.19 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>青江白菜</td><td>26.42 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>小白菜</td><td>25.65 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>甘藍</td><td>12.46 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>結球白菜</td><td>13.2 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>萵苣(油麥菜)</td><td>20.16 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>本島萵苣</td><td>34.24 元/公斤</td><td class="down">+0.00%</td></tr>
+</tbody>
+</table>
+<h3>【果菜類】</h3>
+<table class="price-table">
+<thead><tr><th>產品</th><th>價格</th><th>漲跌</th></tr></thead>
+<tbody>
+<tr><td>甜椒(青椒)</td><td>42.97 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>牛蕃茄</td><td>35.74 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>茄子</td><td>25.97 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>花胡瓜</td><td>38.47 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>胡瓜(黑刺)</td><td>24.16 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>甜椒(彩椒)</td><td>46.19 元/公斤</td><td class="down">+0.00%</td></tr>
+</tbody>
+</table>
+<h3>【根莖類】</h3>
+<table class="price-table">
+<thead><tr><th>產品</th><th>價格</th><th>漲跌</th></tr></thead>
+<tbody>
+<tr><td>辣椒</td><td>47.9 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>蒜頭(蒜球)</td><td>63.46 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>洋蔥(內銷)</td><td>11.82 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>青蔥</td><td>48.08 元/公斤</td><td class="up">++0.62%</td></tr>
+<tr><td>馬鈴薯(食用)</td><td>20.47 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>生薑(老薑粉薑)</td><td>95.15 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>生薑(嫩薑)</td><td>74.72 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>胡蘿蔔</td><td>10.66 元/公斤</td><td class="down">+0.00%</td></tr>
+</tbody>
+</table>
+<h2>🍎 二、主要水果價格</h2>
+<table class="price-table">
+<thead><tr><th>產品</th><th>價格</th><th>漲跌</th></tr></thead>
+<tbody>
+<tr><td>木瓜</td><td>36.73 元/公斤</td><td class="down">-0.06%</td></tr>
+<tr><td>青香蕉(內銷)</td><td>16.66 元/公斤</td><td class="up">++0.15%</td></tr>
+<tr><td>新興梨</td><td>48.5 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>巨峰葡萄</td><td>74.49 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>甘露梨</td><td>38.33 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>豐水梨</td><td>117.41 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>鳳梨(17號)</td><td>22.35 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>鳳梨(開英)</td><td>18.25 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>酪梨</td><td>62.99 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>芒果(金煌)</td><td>33.69 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>芒果(愛文)</td><td>62.52 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>西瓜(小粒)</td><td>16.37 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>西瓜(大粒)</td><td>18.7 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>芒果(在來)</td><td>93.13 元/公斤</td><td class="down">+0.00%</td></tr>
+<tr><td>鳳梨釋迦</td><td>52.73 元/公斤</td><td class="down">+0.00%</td></tr>
+</tbody>
+</table>
+<h2>🍚 三、米價</h2>
+<div class="info-box">
+<strong>💰 全國平均：</strong> 50.0 元/公斤
+</div>
+<h2>🐷 四、豬價</h2>
+<div class="info-box">
+<strong>💰 今日全國平均：</strong> 96.75 元/公斤
+</div>
+<h2>🐟 五、主要魚價</h2>
+<table class="price-table">
+<thead><tr><th>魚種</th><th>價格</th><th>漲跌</th></tr></thead>
+<tbody>
+<tr><td>吳郭魚</td><td>64.35 元/公斤</td><td class="down">-0.07%</td></tr>
+<tr><td>尼羅紅魚</td><td>72.15 元/公斤</td><td class="up">++1.20%</td></tr>
+<tr><td>鯖魚</td><td>64.61 元/公斤</td><td class="up">++0.42%</td></tr>
+<tr><td>虱目魚</td><td>101.47 元/公斤</td><td class="down">-0.22%</td></tr>
+<tr><td>草魚</td><td>116.99 元/公斤</td><td class="down">-0.01%</td></tr>
+<tr><td>鯉魚</td><td>71.98 元/公斤</td><td class="down">-0.74%</td></tr>
+<tr><td>石斑魚</td><td>360.21 元/公斤</td><td class="down">-3.34%</td></tr>
+</tbody>
+</table>
+<h2>🐔 六、雞價、蛋價</h2>
+<div class="info-box">
+<strong>【雞價】</strong><br>
+• 白肉雞 2.0Kg 以上：34.5 元/公斤<br>
+• 白肉雞 1.75-1.95Kg：34.5 元/公斤<br>
+• 白肉雞（門市價高屏）：36.0 元/公斤<br>
+<strong>【蛋價】</strong><br>
+• 雞蛋（產地）：67.0 元/公斤
+</div>
+<div class="alert">
+<strong>✅ 物價穩定</strong><br>
+當日價格變動均在 ±10% 內
+</div>
+<div class="footer">
+📡 資料來源 | 行政院農業委員會農糧署開放資料<br>
+📅 下次更新 | 明日下午 14:00
+</div>
+</div>
+</body>
+</html>
