@@ -87,7 +87,7 @@ def main():
     (HISTORY/"index.html").write_text(f"<!doctype html><meta charset='utf-8'><title>歷史物價報告</title><style>body{{font-family:'Microsoft JhengHei',sans-serif;max-width:800px;margin:40px auto;padding:20px}}a{{color:#0284c7}}</style><h1>📚 歷史物價報告</h1><ul>{links}</ul><p><a href='../index.html'>返回今日報告</a></p>",encoding="utf-8")
     render_trend()
 def nav():
-    return "<nav><a href='index.html'>今日報告</a><a href='trend.html'>詳盡趨勢</a><a href='market.html'>傳統市場／批發比價</a><a href='history/index.html'>歷史報告</a></nav>"
+    return "<nav><a href='index.html'>今日報告</a><a href='trend.html'>詳盡趨勢</a><a href='market.html'>傳統市場／批發比價</a><a href='xiluo.html'>西螺蔬菜行情</a><a href='history/index.html'>歷史報告</a></nav>"
 
 
 def page(title, body):
@@ -150,6 +150,32 @@ def retail_series(history, needle):
         match = next((x for x in history["surveys"][month]["items"] if needle in x["name"] and x["retail_average"] is not None), None)
         if match: points.append((month, match["retail_average"]))
     return points
+
+
+def xiluo_period(row):
+    rank = {"": 0, "上旬": 1, "中旬": 2, "下旬": 3}
+    return (int(row.get("YEAR", 0)), int(row.get("MONTH", 0)), rank.get(str(row.get("PERIOD", "")), 0))
+
+
+def xiluo_label(row):
+    period = str(row.get("PERIOD", ""))
+    return f"{row.get('YEAR', '')}年{row.get('MONTH', '')}月{period}"
+
+
+def render_xiluo(rows):
+    market = "雲林縣_西螺鎮農會"
+    grouped = {}
+    for row in rows:
+        if row.get("ORGNAME") == market and num(row.get("AVGPRICE")) is not None:
+            grouped.setdefault(row.get("PRODUCTNAME", ""), []).append(row)
+    table_rows = []
+    for name, items in sorted(grouped.items()):
+        items.sort(key=xiluo_period, reverse=True)
+        latest, previous = items[0], items[1] if len(items) > 1 else None
+        price = num(latest.get("AVGPRICE")); old = num(previous.get("AVGPRICE")) if previous else None
+        table_rows.append(f"<tr><td>{html.escape(name)}</td><td>{xiluo_label(latest)}</td><td>{price:.2f} 元/公斤</td><td>{delta(price, old)}</td><td>{xiluo_label(previous) if previous else '—'}</td></tr>")
+    body = f"<h1>🥬 西螺鎮蔬菜交易行情</h1><div class='info'>交易市場：西螺鎮農會。每個蔬菜品項以官方資料中可取得的最近一期為準，並與同品項前一期比較。<br>資料來源：<a href='https://m.moa.gov.tw/Transaction/AgriculturalProduct/Index' target='_blank' rel='noopener'>農業部農產品交易行情</a></div><h2>最新蔬菜品項、價格與變動</h2><table><thead><tr><th>蔬菜品項</th><th>最近一期</th><th>平均價格</th><th>較前一期</th><th>前一期</th></tr></thead><tbody>{''.join(table_rows) or '<tr><td colspan=5>目前尚無西螺鎮市場可用資料。</td></tr>'}</tbody></table><p><small>註：官方資料依品項發布期間可能不同；本頁不以不同品項的不同期別互相比價。</small></p>"
+    (ROOT / "xiluo.html").write_text(page("西螺鎮蔬菜交易行情", body), encoding="utf-8")
 
 
 def render_market_comparison(latest_wholesale):
@@ -225,7 +251,7 @@ def main():
     (ROOT/"index.html").write_text(report,encoding="utf-8"); (HISTORY/f"{stamp}.html").write_text(report,encoding="utf-8")
     links="".join(f"<li><a href='{p.name}'>{p.stem[:4]}-{p.stem[4:6]}-{p.stem[6:]}</a></li>" for p in sorted(HISTORY.glob("20*.html"),reverse=True))
     (HISTORY/"index.html").write_text(f"<!doctype html><meta charset='utf-8'><title>歷史物價報告</title><h1>歷史物價報告</h1><ul>{links}</ul><p><a href='../index.html'>返回今日報告</a></p>",encoding="utf-8")
-    render_market_comparison(wholesale); render_trend()
+    render_market_comparison(wholesale); render_trend(); render_xiluo(feeds["wholesale"])
 
 
 if __name__ == '__main__': main()
