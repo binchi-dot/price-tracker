@@ -1,6 +1,8 @@
 name: 每週物價自動部署
 
 on:
+  push:
+    branches: [main]
   schedule:
     - cron: "0 6 * * 5"
   workflow_dispatch:
@@ -16,6 +18,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    concurrency:
+      group: price-pages
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,14 +36,16 @@ jobs:
           python-version: '3.10'
 
       - name: 更新網站資料與首頁
+        if: github.event_name != 'push'
         run: python3 scripts/update_site.py
 
-      - name: 補抓歷史行情並重建趨勢圖
-        if: inputs.backfill == true
+      - name: 驗證資料與頁面
         run: |
-          python3 scripts/update_site.py
+          python3 -m unittest discover -s scripts -p test_monitoring.py
+          node scripts/test_monitor_ui.cjs
 
       - name: Commit and Push
+        if: github.event_name != 'push'
         run: |
           git config user.name "Price Bot"
           git config user.email "bot@taiwan-price.app"
@@ -44,4 +56,21 @@ jobs:
             git commit -m "Auto update: $(date +%Y-%m-%d)"
             git push
           fi
+
+      - name: 準備公開頁面（不包含原始工作簿及程式）
+        run: |
+          mkdir -p _site
+          cp index.html market.html trend.html xiluo.html monitor-data.json _site/
+
+      - name: 設定 GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: 上傳網站
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - name: 發布 GitHub Pages
+        id: pages
+        uses: actions/deploy-pages@v4
 
