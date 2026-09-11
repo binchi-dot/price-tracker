@@ -254,4 +254,11 @@ def main():
     render_market_comparison(wholesale); render_trend(); render_xiluo(feeds["wholesale"])
 
 
-if __name__ == '__main__': main()
+if __name__ == '__main__':
+    # All live routes share the verified monitoring build; legacy renderers remain archival only.
+    from datetime import date as calendar_date
+    from monitoring import fetch, build
+    errors = fetch(calendar_date(2026, 1, 1), calendar_date.today())
+    if errors:
+        raise RuntimeError('來源更新不完整，保留上一版公開網站：' + '; '.join(errors))
+    build(ROOT)

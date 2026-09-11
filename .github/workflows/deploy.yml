@@ -31,7 +31,6 @@ jobs:
       - name: 補抓歷史行情並重建趨勢圖
         if: inputs.backfill == true
         run: |
-          python3 scripts/backfill_history.py --from 2026-08-01
           python3 scripts/update_site.py
 
       - name: Commit and Push
