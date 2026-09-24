@@ -37,7 +37,13 @@ jobs:
 
       - name: 更新網站資料與首頁
         if: github.event_name != 'push'
-        run: python3 scripts/update_site.py
+        run: |
+          # 僅依使用者要求跳過 2026-09-25 的一次排程，之後恢復正常週五更新。
+          if [ "$(date -u +%F)" = "2026-09-25" ] && [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "一次性暫停：2026-09-25 不抓取新資料，保留上一版。"
+            exit 0
+          fi
+          python3 scripts/update_site.py
 
       - name: 驗證資料與頁面
         run: |
