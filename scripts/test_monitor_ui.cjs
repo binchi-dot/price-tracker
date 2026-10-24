@@ -3,7 +3,7 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const html=fs.readFileSync('preview/index.html','utf8');
 assert(html.includes('href="https://script.google.com/macros/s/AKfycbzE1ZYdZsbJuMLQMWXTeO21bR-fb3BvRMzcxOz9P5gcBbYJRxzEZZtVJAZHqefwRrw/exec" target="_blank" rel="noopener noreferrer"'));
 assert(html.includes('登入填報／當日查價'));
-assert(!html.includes('binchi@gmail.com'));
+assert(!/[a-z0-9._%+-]+@gmail\.com/i.test(html));
 const script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const elements=new Map();let exported;
 function el(id){if(!elements.has(id))elements.set(id,{value:'',innerHTML:'',textContent:'',hidden:false,open:false,addEventListener(){},append(){},setAttribute(){},showModal(){this.open=true},close(){this.open=false}});return elements.get(id)}

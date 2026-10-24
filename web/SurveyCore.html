@@ -1,0 +1,43 @@
+<script>
+/* Shared pure rules: browser and server both validate through this module. */
+var SurveyCore = (() => {
+  const clean=s=>String(s??'').normalize('NFKC').trim().replace(/\s+/g,' ');
+  const positive=v=>v!==''&&v!==null&&v!==undefined&&Number.isFinite(Number(v))&&Number(v)>0;
+  const units=['台斤','公斤','顆','包','盒','把','支','片'];
+  function checkDate(s,today){
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||new Date(s+'T00:00:00Z').toISOString().slice(0,10)!==s||s>today||s<'2000-01-01')throw Error('日期不正確或晚於今天');
+    return s;
+  }
+  function validate(r,catalog,today){
+    if(!r||!catalog.some(i=>i.id===r.itemId))throw Error('請選擇有效品項');
+    const out={id:clean(r.id),version:Number(r.version||0),date:checkDate(clean(r.date),today),market:clean(r.market),outlet:clean(r.outlet),itemId:r.itemId,spec:clean(r.spec),unit:clean(r.unit),price:Number(r.price),grams:r.grams===''||r.grams==null?null:Number(r.grams),note:clean(r.note),reason:clean(r.reason)};
+    if(!out.market||out.market.length>80||out.outlet.length>80||!out.spec||out.spec.length>160||out.note.length>300||out.reason.length>200)throw Error('請填市場與明確規格，文字不可過長');
+    if(!units.includes(out.unit)||!positive(r.price)||out.price>1000000)throw Error('請填有效單位及大於零的價格');
+    if(out.grams!==null&&(!positive(out.grams)||out.grams>100000))throw Error('每售價單位重量須大於零且不超過100公斤');
+    if(out.unit==='台斤')out.grams=600;
+    if(out.unit==='公斤')out.grams=1000;
+    if(!Number.isInteger(out.version)||out.version<0)throw Error('版本錯誤，請重新整理');
+    if(r.inspection){
+      out.inspection={};
+      for(const [k,max] of Object.entries({caseId:80,inspector:80,location:200,findings:1200,action:1200})){
+        const v=clean(r.inspection[k]);if(v.length>max)throw Error('稽查資料文字過長');out.inspection[k]=v;
+      }
+      const evidence=r.inspection.evidence||[];if(!Array.isArray(evidence)||evidence.length>6)throw Error('照片最多6張');
+      out.inspection.evidence=evidence.map(p=>{if(!p||!/^([a-f0-9]{64})$/.test(p.sha256)||clean(p.name).length>160)throw Error('照片識別資料不正確');return {name:clean(p.name),sha256:p.sha256};});
+    }
+    return out;
+  }
+  const kg=r=>positive(r.grams)?Number(r.price)*1000/Number(r.grams):null;
+  const family=r=>JSON.stringify([clean(r.market),clean(r.outlet),r.itemId,clean(r.spec)]);
+  const key=r=>JSON.stringify([r.date,family(r)]);
+  function comparable(a,b){return family(a)===family(b)&&((kg(a)!==null&&kg(b)!==null)||(a.unit===b.unit&&a.grams==null&&b.grams==null));}
+  function previous(r,records){return records.filter(p=>!p.void&&p.id!==r.id&&p.date<r.date&&comparable(r,p)).sort((a,b)=>b.date.localeCompare(a.date)||String(b.updatedAt).localeCompare(String(a.updatedAt)))[0]||null;}
+  function delta(r,records){const p=previous(r,records);if(!p)return {previous:null,amount:null,percent:null,label:'首次查調／無可比前次'};const a=kg(r)??r.price,b=kg(p)??p.price;return {previous:p,amount:a-b,percent:(a/b-1)*100,unit:kg(r)!==null?'元／公斤':'元／'+r.unit,label:p.date};}
+  function replay(events){const map=new Map();for(const e of events)for(const r of e.records||[])map.set(r.id,e.inspection&&!r.inspection?{...r,inspection:e.inspection}:r);return [...map.values()];}
+  function cells(v){let s=String(v??'');if(/^[\s]*[=+@-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
+  const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function summarize(rows,all){let up=0,down=0,flat=0,first=0;const changes=rows.map(r=>({record:r,...delta(r,all)}));for(const d of changes){if(d.percent===null)first++;else if(Math.abs(d.percent)<1e-8)flat++;else if(d.percent>0)up++;else down++;}return {total:rows.length,up,down,flat,first,changes};}
+  function monthly(rows){const map=new Map();for(const r of rows){const v=kg(r);if(r.void||v===null)continue;const m=r.date.slice(0,7);if(!map.has(m))map.set(m,[]);map.get(m).push(v);}return [...map].sort().map(([month,v])=>({month,value:v.reduce((a,b)=>a+b,0)/v.length,low:Math.min(...v),high:Math.max(...v),n:v.length}));}
+  return {clean,positive,units,validate,kg,key,family,previous,delta,replay,cells,escape,summarize,monthly};
+})();
+</script>

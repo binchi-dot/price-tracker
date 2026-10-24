@@ -47,8 +47,10 @@ jobs:
 
       - name: 驗證資料與頁面
         run: |
+          node scripts/build_inspection.cjs
           python3 -m unittest discover -s scripts -p test_monitoring.py
           node scripts/test_monitor_ui.cjs
+          node scripts/test_inspection.cjs
 
       - name: Commit and Push
         if: github.event_name != 'push'
@@ -67,6 +69,9 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html market.html trend.html xiluo.html monitor-data.json _site/
+          cp inspection.html inspection-tools.js docx.umd.js tesseract.min.js _site/
+          cp LICENSE-docx THIRD_PARTY.md _site/
+          cp -R ocr _site/
 
       - name: 設定 GitHub Pages
         uses: actions/configure-pages@v5
